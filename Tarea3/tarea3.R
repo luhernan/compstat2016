@@ -83,12 +83,99 @@ tarea3 <- function(input, output, session) {
     plot(x, ndist(), type="l", lty=2, xlab="X",ylab="Densidad", main=paste('A Priori Betas'))
   })
   
-  #Para la gamma, elegi la distribucion gamma
+  #Para la sigma, elegi la distribucion gamma
   output$apriorig <- renderPlot({
     x <- seq(-50, 50, length=100)
-    plot(x, gdist(), type="l", lty=2, xlab="X",ylab="Densidad", main=paste('A Priori Eps'))
+    plot(x, gdist(), type="l", lty=2, xlab="X",ylab="Densidad", main=paste('A Priori Sigma'))
   })
-
+  
+  
+  likelihood <- function(param){
+    b1= param[1]
+    b0 = param[2]
+    sigma2 = param[3]
+    pred = b1* dataframe()$data[,input$independiente] + b0
+    singlelikelihoods = dnorm(dataframe()$data[,input$dependiente], mean = pred, sd = sigma2**.5, log = T)
+    sumll = sum(singlelikelihoods)
+    return(sumll)
+  }
+  
+  prior <- function(param){
+    b1 = param[1]
+    b0 = param[2]
+    sigma2 = param[3]
+    b1prior = dnorm(b1, mean=round(nreg()$betas[1,1],digits=2), sd=round(nreg()$betas[1,2]**.5,digits=2), log = T)
+    b0prior = dnorm(b0, mean=round(nreg()$betas[2,1],digits=2), sd=round(nreg()$betas[2,2]**.5,digits=2), log = T)
+    sigma2prior = dinvgamma(sigma2,14,round(25*nreg()$summary$sigma,digits=2),log = T)
+    return(b1prior+b0prior+sigma2prior)
+  }
+  
+  posterior <- function(param){
+    return (likelihood(param) + prior(param))
+  }
+  
+  #Metropolis
+  
+  proposalfunction <- function(param){
+    return(rnorm(3,mean = param, sd= c(0.1,0.5,0.3)))
+  }
+  
+  run_metropolis_MCMC <- function(startvalue, iterations){
+    chain <- array(dim = c(iterations+1,3))
+    chain[1,] <- startvalue
+    for (i in 1:iterations){
+      proposal <- proposalfunction(chain[i,])
+      
+      logprobab =posterior(proposal) - posterior(chain[i,])
+      if (log(runif(1)) <= logprobab){
+        chain[i+1,] = proposal
+      }else{
+        chain[i+1,] = chain[i,]
+      }
+    }
+    return(chain)
+  }
+  
+  mcmc <- reactive({
+    startvalue = c(rnorm(1,0,1),rnorm(1,0,1),rinvgamma(1,1,1))
+    chain = run_metropolis_MCMC(startvalue, input$simulaciones)
+    data.frame(b1=chain[,1],b0=chain[,2],s2=chain[,3])
+  })
+  
+  output$result <- renderDataTable({
+    mcmc()
+  })
+  
+  output$histograma <- renderPlot({
+    burnIn = input$simulaciones*.20
+    acceptance = 1-mean(duplicated(mcmc()[-(1:burnIn),]))
+    par(mfrow = c(2,3))
+    hist(mcmc()[-(1:burnIn),1],nclass=30,  main="a Posteriori de Alfa", xlab="Parametro", ylab="Frecuencia")
+    abline(v = mean(mcmc()[-(1:burnIn),1]))
+    hist(mcmc()[-(1:burnIn),2],nclass=30, main="a Posteriori de Beta", xlab="Parametro", ylab="Frecuencia")
+    abline(v = mean(mcmc()[-(1:burnIn),2]))
+    hist(mcmc()[-(1:burnIn),3],nclass=30, main="a Posteriori de Sigma^2", xlab="Parametro", ylab="Frecuencia")
+    abline(v = mean(mcmc()[-(1:burnIn),3]) )
+    plot(mcmc()[-(1:burnIn),1], type = "l", xlab="Iteraciones" , main = "Valores de las Cadenas de Alfa" )
+    plot(mcmc()[-(1:burnIn),2], type = "l", xlab="Iteraciones" , main = "Valores de las Cadenas de Beta")
+    plot(mcmc()[-(1:burnIn),3], type = "l", xlab="Iteraciones" , main = "Valores de las Cadenas de Sigma^2")
+  })
+  
+  output$distribuciones<-renderPlot({
+    
+    burnIn = input$simulaciones*.20
+    
+    par(mfrow = c(1,3))
+    
+    d1 <- density(mcmc()[-(1:burnIn),1])
+    d2 <- density(mcmc()[-(1:burnIn),2])
+    d3 <- density(mcmc()[-(1:burnIn),3])
+    
+    plot(d1,main = "a Posteriori de Alfa")
+    plot(d2,main = "a Posteriori de Beta")
+    plot(d3,main = "a Posteriori de Sigma^2")
+  })
+  
   
   #'Observador' para delimitar el numero de estados con relacion al archivo seleccionado
   observeEvent(input$file, {

@@ -18,26 +18,35 @@ tarea3UI <- function(id, label = "CSV file") {
     plotOutput(ns("aprioria")),
     plotOutput(ns("apriorib")),
     plotOutput(ns("apriorig")),
-    numericInput(
-      inputId = ns("edo_inicial"),
-      label = "Longitud de las Cadenas",
-      value = 2,
-      min = 1,
-      max = 1
-    ),
+    #numericInput(
+    #  inputId = ns("edo_inicial"),
+    #  label = "Longitud de las Cadenas",
+    #  value = 2,
+    #  min = 1,
+    #  max = 1
+    #),
     numericInput(
       inputId = ns("simulaciones"),
       label = "Numero de Cadenas",
       value = "1000",
       min = 1
-    )#,
+    ),
+    p(""),
+    strong("Simulacion MCMC"),
+    p(""),
+    dataTableOutput(ns("result")),
+    p(""),
+    strong("Graficas de Parametros"),
+    p(""),
+    plotOutput(ns("histograma")),
+    p(""),
+    strong("Graficas a Posterioris"),
+    p(""),
+    plotOutput(ns("distribuciones"))
+    
     #p(strong("Trayectoria"), textOutput(ns("traj")))
-    
-    #dataTableOutput(ns("traj"))
-    
-    
-    #tableOutput(ns("table")),
+    #tableOutput(ns("table"))
     #p(textOutput(ns("res1")))
-   # tableOutput(ns("table"))
+    #tableOutput(ns("table"))
   )
 }
